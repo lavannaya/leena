@@ -1,0 +1,63 @@
+from tensorflow.keras.application.mobilenet_v2 import preprocess_input
+from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.keras.models import load_model
+from imutils.video import Videostream
+import numpy as np
+import inutils
+import time
+import cv2
+import os
+def detect_and_predict_mask (frame, faceNet, maskNet):
+  (h, v) = frame.shape[:2]
+  blob = cv2.dnn.blobFromImage(frame, 1.8, (224, 224),(184.8, 177.8, 123.0))
+  faceNet.setInput(blob)
+  detections = faceliet. forvard()
+  print (detections.shape)
+  faces = []
+  locs = []
+  preds = []
+for i in range(0, detections.shape[2]):
+    confidence=detections[0, 0, i, 2]
+    if confidence > 0.5:
+        box = detections[0, 0, i, 3:7]* np.array([w, h, w, h])
+        (startX, startY, endX, endY) = box.astype("int")
+        (startX, startY) = (max(0, startx), max(0, starty))
+        (endX, endY) = (min (w - 1, endx), min(h - 1, endy)) 
+        face = frame[startY:endY, startX:endX]
+        face = cv2.cvtColor (face, cv2.COLOR_BGR2RGB)
+        face = cv2.resize(face, (224, 224))
+        face = img_to_array(face)
+        face = preprocess_input(face)
+        
+        faces.append(face)
+        locs.append((startX, startY, endX, endY))
+if len(faces) > 0:
+    faces= np.array(faces, dtype="float32")
+    preds= maskNet.predict(faces, batch_size=32)
+return (locs, preds)
+prototxtPath=r"face_detector\deploy.prototxt"
+weightsPath=r"face_detector\res10.300x300_sad_iter_148000.caffemodel"
+facellet=cv2.dnn.readNet(prototxtPath, weightsPath)
+maskNet = load_model("mask_detector.model")
+print("[INFO] starting video stream...")
+vs=VideoStream(src=0).start()
+while True:
+    frame = vs.read()
+    frame = inutils.resize(frame, width=480)
+    (locs, preds) = detect_and_predict_mask(frame, facellet, maskNet)
+    for (box, pred) in zip(locs, preds): 
+        (startX, startY, endX, endY) = box
+    (mask, withoutmask) = pred
+    label= "mask" if mask > withoutMask else "No Mask"
+    color (8, 255, 8) if label == "Mask" else (8, 8, 255)
+    label="{}: {:.2f}x".format(label, sax(mask, withoutMask)* 100)
+    
+    cv2.putText(frase, label, (startX, startY - 10),
+        cv2.FONT_HERSHEY_SIMPLEX, 8.45, color, 2) 
+    cv2.rectangle(frame, (startX, startY), (endX, endy), color, 2)
+  cv2.inshow("Frame", frame)
+  key = cv2.waitKey(1) & 0xFF
+if key == ord("q"):
+    break
+cv2.destroyA11Windows()
+vs.stop()
